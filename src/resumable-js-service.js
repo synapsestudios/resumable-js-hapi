@@ -7,6 +7,7 @@ class ResumableJsService {
     constructor(options = {}) {
         this.error = null;
         this.chunkPrefix = options.chunkPrefix || '';
+
     }
 
     _cleanIdentifier(identifier) {
@@ -25,12 +26,12 @@ class ResumableJsService {
         identifier = this._cleanIdentifier(identifier);
 
         // Check if the request is sane
-        if (chunkNumber == 0 || chunkSize == 0 || totalSize == 0 || identifier.length == 0 || filename.length == 0) {
-            this.error = 'non_resumable_request';
+        if (chunkNumber < 1 || chunkSize < 1 || totalSize < 1 || identifier.length === 0 || filename.length === 0) {
+            this.error = 'Not a valid resumable request';
             return false;
         }
 
-        var numberOfChunks = Math.max(Math.floor(totalSize / (chunkSize*1.0)), 1);
+        var numberOfChunks = Math.max(Math.floor(totalSize / (chunkSize * 1.0)), 1);
         if (chunkNumber > numberOfChunks) {
             this.error = 'Invalid chunk number';
             return false;
@@ -40,15 +41,13 @@ class ResumableJsService {
             if (chunkNumber < numberOfChunks && fileSize != chunkSize) {
                 this.error = `The chunk in the POST request isn't the correct size`;
             }
-            if (numberOfChunks > 1 && chunkNumber == numberOfChunks && fileSize != ((totalSize%chunkSize) + chunkSize)) {
-                this.error = `The chunks in the POST is the last one, and the file is not the correct size`;
-            }
             if (numberOfChunks == 1 && fileSize != totalSize) {
                 this.error = `The file is only a single chunk, and the data size does not fit`;
             }
             return false;
         }
 
+        this.error = null;
         return true;
     }
 
@@ -114,6 +113,7 @@ class ResumableJsService {
                     chunkSize,
                     totalSize,
                     identifier,
+                    filename,
                     file.bytes
             )) {
                 return reject(this.getError());
