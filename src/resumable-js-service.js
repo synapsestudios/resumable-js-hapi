@@ -82,6 +82,8 @@ class ResumableJsService {
                     } else {
                         resolve(false);
                     }
+                }).catch(err => {
+                    reject(err);
                 });
             } else {
                 reject(this.getError());
@@ -121,8 +123,8 @@ class ResumableJsService {
             return fs.rename(file.path, chunkFilename).then(() => {
                 // Do we have all the chunks?
                 var currentTestChunk = 1;
-                var numberOfChunks = Math.max(Math.floor(totalSize / (chunkSize*1.0)), 1);
-                var testChunkExists = function() {
+                var numberOfChunks = Math.max(Math.floor(totalSize / (chunkSize * 1.0)), 1);
+                var testChunkExists = () => {
                     return fs.exists(this._getChunkFilename(currentTestChunk, identifier)).then(exists => {
                         if (exists) {
                             currentTestChunk += 1;
@@ -148,6 +150,8 @@ class ResumableJsService {
                     });
                 };
                 return testChunkExists();
+            }).catch(err => {
+                reject(err);
             });
         });
     }
@@ -159,7 +163,7 @@ class ResumableJsService {
             options.end = (typeof options['end'] === 'undefined' ? true : options['end']);
 
             // Iterate over each chunk
-            var pipeChunk = function(number) {
+            var pipeChunk = number => {
 
                 var chunkFilename = this._getChunkFilename(number, identifier);
                 fs.exists(chunkFilename).then(exists => {
@@ -182,6 +186,8 @@ class ResumableJsService {
                         }
                         resolve();
                     }
+                }).catch(err => {
+                    reject(err);
                 });
             };
             pipeChunk(1);
@@ -192,7 +198,7 @@ class ResumableJsService {
     clean(identifier) {
         return new Promise((resolve, reject) => {
             // Iterate over each chunk
-            var pipeChunkRm = function(number) {
+            var pipeChunkRm = number => {
 
                 var chunkFilename = this._getChunkFilename(number, identifier);
 
@@ -207,6 +213,8 @@ class ResumableJsService {
                     } else {
                         resolve();
                     }
+                }).catch(err => {
+                    reject(err);
                 });
             };
             pipeChunkRm(1);
