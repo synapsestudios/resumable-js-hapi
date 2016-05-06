@@ -26,7 +26,7 @@ describe('ResumableJsService', () => {
         } else {
             request.payload = resumableParams;
             request.payload.file = {
-                bytes: 10500,
+                bytes: 1000,
                 path: '/tmp/some-path'
             };
         }
@@ -100,8 +100,8 @@ describe('ResumableJsService', () => {
 
             var promise = service.get(getValidRequest('GET'));
 
-            return expect(promise).to.be.fulfilled.then(resolution => {
-                expect(resolution).to.equal(false);
+            return expect(promise).to.be.fulfilled.then(result => {
+                expect(result).to.equal(false);
             });
         });
 
@@ -114,10 +114,24 @@ describe('ResumableJsService', () => {
 
             var promise = service.get(request);
 
-            return expect(promise).to.be.fulfilled.then(resolution => {
-                expect(resolution.chunkFilename).to.be.ok;
-                expect(resolution.filename).to.equal(request.query.resumableFilename);
-                expect(resolution.identifier).to.equal(request.query.resumableIdentifier);
+            return expect(promise).to.be.fulfilled.then(result => {
+                expect(result.chunkFilename).to.be.ok;
+                expect(result.filename).to.equal(request.query.resumableFilename);
+                expect(result.identifier).to.equal(request.query.resumableIdentifier);
+            });
+        });
+
+        it('rejects with error if fs.exists fails', () => {
+            ResumableJsService.__Rewire__('fs', {
+                exists: () => new Promise((resolve, reject) => reject('error!')),
+            });
+            var service = new ResumableJsService();
+            var request = getValidRequest('GET');
+
+            var promise = service.get(request);
+
+            return expect(promise).to.be.rejected.then(error => {
+                expect(error).to.equal('error!');
             });
         });
     });
@@ -145,6 +159,61 @@ describe('ResumableJsService', () => {
 
             return expect(promise).to.be.rejected.then(error => {
                 expect(error).to.equal(`The file is only a single chunk, and the data size does not fit`);
+            });
+        });
+
+        it('rejects if file missing from payload', () => {
+            var service = new ResumableJsService();
+            var request = getValidRequest('POST');
+
+            delete request.payload.file;
+            var promise = service.post(request);
+
+            return expect(promise).to.be.rejected.then(error => {
+                expect(error).to.equal('File missing');
+            });
+        });
+
+        it('rejects if file has no bytes', () => {
+            var service = new ResumableJsService();
+            var request = getValidRequest('POST');
+
+            request.payload.file.bytes = 0;
+            var promise = service.post(request);
+
+            return expect(promise).to.be.rejected.then(error => {
+                expect(error).to.equal('File missing');
+            });
+        });
+
+        it('renames file and returns { complete: false } if not last chunk', () => {
+            ResumableJsService.__Rewire__('fs', {
+                rename: () => new Promise(resolve => resolve()),
+                exists: () => new Promise(resolve => resolve(false)),
+            });
+            var service = new ResumableJsService();
+            var request = getValidRequest('POST');
+
+            var promise = service.post(request);
+
+            return expect(promise).to.be.fulfilled.then(result => {
+                expect(result.complete).to.equal(false);
+            });
+        });
+
+        it('renames file and returns { complete: true } and identifier if last chunk', () => {
+            ResumableJsService.__Rewire__('fs', {
+                rename: () => new Promise(resolve => resolve()),
+                exists: () => new Promise(resolve => resolve(true)),
+            });
+            var service = new ResumableJsService();
+            var request = getValidRequest('POST');
+
+            var promise = service.post(request);
+
+            return expect(promise).to.be.fulfilled.then(result => {
+                expect(result.complete).to.equal(true);
+                expect(result.identifier).to.equal(service._cleanIdentifier(request.payload.resumableIdentifier));
             });
         });
     });

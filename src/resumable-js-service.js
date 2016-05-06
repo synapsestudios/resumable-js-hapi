@@ -44,7 +44,9 @@ class ResumableJsService {
             if (numberOfChunks == 1 && fileSize != totalSize) {
                 this.error = `The file is only a single chunk, and the data size does not fit`;
             }
-            return false;
+            if (this.error) {
+                return false;
+            }
         }
 
         this.error = null;
@@ -105,7 +107,7 @@ class ResumableJsService {
             var originalFilename = fields['resumableIdentifier'];
 
             if (! file || ! file.bytes) {
-                return reject('invalid_resumable_request');
+                return reject('File missing');
             }
 
             if (! this._validateRequest(
