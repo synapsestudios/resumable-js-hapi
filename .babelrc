@@ -1,4 +1,9 @@
 {
+  "env": {
+    "testing": {
+      "plugins": ["rewire"]
+    }
+  },
   "presets": [
     "es2015"
   ]
