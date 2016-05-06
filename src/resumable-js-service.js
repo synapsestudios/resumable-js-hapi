@@ -162,6 +162,10 @@ class ResumableJsService {
             options = options || {};
             options.end = (typeof options['end'] === 'undefined' ? true : options['end']);
 
+            writableStream.on('error', error => {
+                reject(error);
+            });
+
             // Iterate over each chunk
             var pipeChunk = number => {
 
