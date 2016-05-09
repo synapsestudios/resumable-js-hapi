@@ -1,6 +1,6 @@
 {
   "name": "resumable-js-hapi",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "resumable.js backend implementation for hapi",
   "main": "lib/index.js",
   "scripts": {
