@@ -202,21 +202,24 @@ class ResumableJsService {
     // Delete chunks
     clean(identifier) {
         return new Promise((resolve, reject) => {
+            var removePromises = [];
             // Iterate over each chunk
             var pipeChunkRm = number => {
-
                 var chunkFilename = this._getChunkFilename(number, identifier);
-
                 fs.exists(chunkFilename).then(exists => {
                     if (exists) {
-                        fs.remove(chunkFilename).then(err => {
-                            reject(err);
-                        });
-
+                        removePromises.push(
+                            fs.remove(chunkFilename)
+                        );
                         pipeChunkRm(number + 1);
-
                     } else {
-                        resolve();
+                        Promise.all(removePromises)
+                            .then((what) => {
+                                resolve();
+                            })
+                            .catch(err => {
+                                reject(err);
+                            });
                     }
                 }).catch(err => {
                     reject(err);

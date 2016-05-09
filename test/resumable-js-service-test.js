@@ -399,7 +399,7 @@ describe('ResumableJsService', () => {
             var service = new ResumableJsService();
 
             ResumableJsService.__Rewire__('fs', {
-                exists: (filename) => new Promise((resolve, reject) => {
+                exists: (filename) => new Promise(resolve => {
                     // 11th chunk not found
                     resolve(filename.match(/11$/) === null);
                 })
@@ -420,6 +420,74 @@ describe('ResumableJsService', () => {
             });
 
             var promise = service.write('identifier', mockWritableStream);
+
+            return expect(promise).to.be.rejected.then(error => {
+                expect(error).to.equal('error!');
+            });
+        });
+    });
+
+    describe('clean', () => {
+
+        var mockWritableStream;
+
+        beforeEach(() => {
+            mockWritableStream = {
+                on: sinon.spy(),
+                end: sinon.spy(),
+            };
+        });
+
+        it('deletes all found chunks', () => {
+            var service = new ResumableJsService();
+            var deleted = [];
+
+            ResumableJsService.__Rewire__('fs', {
+                exists: (filename) => new Promise(resolve => {
+                    // 11th chunk not found
+                    resolve(filename.match(/11$/) === null);
+                }),
+                remove: (filename) => new Promise(resolve => {
+                    deleted.push(filename);
+                    resolve();
+                }),
+            });
+
+            var promise = service.clean('identifier', mockWritableStream);
+
+            return expect(promise).to.be.fulfilled.then(() => {
+                expect(deleted.length).to.equal(10);
+            });
+        });
+
+        it('rejects if fs.exists fails', () => {
+            var service = new ResumableJsService();
+            var deleted = [];
+
+            ResumableJsService.__Rewire__('fs', {
+                exists: (filename) => new Promise((resolve, reject) => reject('error!')),
+            });
+
+            var promise = service.clean('identifier', mockWritableStream);
+
+            return expect(promise).to.be.rejected.then(error => {
+                expect(error).to.equal('error!');
+            });
+        });
+
+        it('rejects if fs.remove fails', () => {
+            var service = new ResumableJsService();
+            var deleted = [];
+
+            ResumableJsService.__Rewire__('fs', {
+                exists: (filename) => new Promise(resolve => {
+                    // 11th chunk not found
+                    resolve(filename.match(/11$/) === null);
+                }),
+                remove: (filename) => new Promise((resolve, reject) => reject('error!')),
+            });
+
+            var promise = service.clean('identifier', mockWritableStream);
 
             return expect(promise).to.be.rejected.then(error => {
                 expect(error).to.equal('error!');
