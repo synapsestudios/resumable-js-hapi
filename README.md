@@ -4,8 +4,6 @@ This is a [resumable.js](https://github.com/23/resumable.js) backend for [Hapi](
 
 ### Usage
 
-#### As a plugin
-
 Register the plugin the usual way. Access the object from `server.plugins['resumable-js-hapi'].service`,
 or construct your own like so:
 ```js
@@ -34,7 +32,7 @@ resumable.post(request).then(result => {
         var stream = getSomeSortOfWritableStream();
         resumable.write(result.identifier, stream).then(() => {
             // Delete chunks
-            resumable.clean(result.identifier); 
+            resumable.clean(result.identifier);
             // Done combining all the chunks and writing them to stream
         });
     } else {
