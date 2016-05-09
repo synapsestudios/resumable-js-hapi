@@ -8,7 +8,7 @@
     "clean": "rm -rf lib",
     "lint": "eslint src",
     "test": "npm run clean && BABEL_ENV=testing mocha --compilers js:babel-register",
-    "prepublish": "npm run lint && npm test"
+    "prepublish": "npm run lint && npm test && npm run build"
   },
   "repository": {
     "type": "git",
