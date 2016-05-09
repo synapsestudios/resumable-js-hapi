@@ -170,7 +170,6 @@ class ResumableJsService {
 
             // Iterate over each chunk
             var pipeChunk = number => {
-
                 var chunkFilename = this._getChunkFilename(number, identifier);
                 fs.exists(chunkFilename).then(exists => {
                     if (exists) {

@@ -12,6 +12,11 @@ import ResumableJsService from '../src/resumable-js-service';
 
 describe('ResumableJsService', () => {
 
+    afterEach(() => {
+        ResumableJsService.__ResetDependency__('fs');
+        ResumableJsService.__ResetDependency__('createReadStream');
+    });
+
     var getValidRequest = (method) => {
         var resumableParams = {
             resumableChunkNumber: 1,
@@ -34,7 +39,6 @@ describe('ResumableJsService', () => {
     };
 
     describe('get', () => {
-
         it('rejects promise if request is invalid', () => {
             var service = new ResumableJsService();
             var request = {};
@@ -278,6 +282,147 @@ describe('ResumableJsService', () => {
 
             return expect(promise).to.be.fulfilled.then(result => {
                 expect(mockFs.rename.args[0][1]).to.match(/\/chunk-prefix/);
+            });
+        });
+
+        it('rejects if rename fails', () => {
+            var mockFs = {
+                rename: () => new Promise((resolve, reject) => reject('error!')),
+                exists: () => new Promise(resolve => resolve(true)),
+            };
+            ResumableJsService.__Rewire__('fs', mockFs);
+            var service = new ResumableJsService();
+            var request = getValidRequest('POST');
+
+            var promise = service.post(request);
+
+            return expect(promise).to.be.rejected.then(error => {
+                expect(error).to.equal('error!');
+            });
+        });
+
+        it('rejects if fs.exists fails', () => {
+            var mockFs = {
+                rename: () => new Promise(resolve => resolve()),
+                exists: () => new Promise((resolve, reject) => reject('error!')),
+            };
+            ResumableJsService.__Rewire__('fs', mockFs);
+            var service = new ResumableJsService();
+            var request = getValidRequest('POST');
+
+            var promise = service.post(request);
+
+            return expect(promise).to.be.rejected.then(error => {
+                expect(error).to.equal('error!');
+            });
+        });
+    });
+
+    describe('write', () => {
+
+        var mockWritableStream;
+        var readStreams;
+
+        beforeEach(() => {
+            readStreams = [];
+            ResumableJsService.__Rewire__('createReadStream', () => {
+                var stream = {
+                    pipe: sinon.spy(),
+                    on: (event, func) => {
+                        func();
+                    },
+                };
+                readStreams.push(stream);
+                return stream;
+            });
+            mockWritableStream = {
+                on: sinon.spy(),
+                end: sinon.spy(),
+            };
+        });
+
+        it('rejects on writable stream error', () => {
+            var service = new ResumableJsService();
+
+            var promise = service.write('identifier', mockWritableStream);
+
+            expect(mockWritableStream.on).to.have.been.called;
+            expect(mockWritableStream.on.args[0][0]).to.equal('error');
+            mockWritableStream.on.args[0][1]('error!');
+
+            return expect(promise).to.be.rejected.then(error => {
+                expect(error).to.equal('error!');
+            });
+        });
+
+        it('pipes each chunk into the writeable stream until it runs out of chunks', () => {
+            var service = new ResumableJsService();
+
+            ResumableJsService.__Rewire__('fs', {
+                exists: (filename) => new Promise((resolve, reject) => {
+                    // 11th chunk not found
+                    resolve(filename.match(/11$/) === null);
+                })
+            });
+
+            var promise = service.write('identifier', mockWritableStream);
+
+            return expect(promise).to.be.fulfilled.then(() => {
+                expect(readStreams.length).to.equal(10);
+                readStreams.forEach(stream =>
+                    expect(stream.pipe).to.have.been.calledWith(
+                        mockWritableStream,
+                        { end: false }
+                    )
+                );
+            });
+        });
+
+        it('ends writable stream', () => {
+            var service = new ResumableJsService();
+
+            ResumableJsService.__Rewire__('fs', {
+                exists: (filename) => new Promise((resolve, reject) => {
+                    // 11th chunk not found
+                    resolve(filename.match(/11$/) === null);
+                })
+            });
+
+            var promise = service.write('identifier', mockWritableStream);
+
+            return expect(promise).to.be.fulfilled.then(() => {
+                expect(mockWritableStream.end).to.have.been.called;
+            });
+        });
+
+        it('does not end writable stream if { end: false } option passed', () => {
+            var service = new ResumableJsService();
+
+            ResumableJsService.__Rewire__('fs', {
+                exists: (filename) => new Promise((resolve, reject) => {
+                    // 11th chunk not found
+                    resolve(filename.match(/11$/) === null);
+                })
+            });
+
+            var promise = service.write('identifier', mockWritableStream, { end: false });
+
+            return expect(promise).to.be.fulfilled.then(() => {
+                expect(mockWritableStream.end).to.not.have.been.called;
+            });
+        });
+
+        it('rejects if fs.exists fails', () => {
+            var service = new ResumableJsService();
+
+            ResumableJsService.__Rewire__('fs', {
+                exists: (filename) => new Promise((resolve, reject) => reject('error!'))
+            });
+
+            var promise = service.write('identifier', mockWritableStream);
+
+            return expect(promise).to.be.rejected.then(error => {
+                expect(error).to.equal('error!');
             });
         });
     });
