@@ -1,5 +1,7 @@
 ## Resumable.js Hapi
 
+![shippable-badge](https://api.shippable.com/projects/5745e8ba2a8192902e216480/badge?branch=master)
+
 This is a [resumable.js](https://github.com/23/resumable.js) backend for [Hapi](http://hapijs.com/). It is adapted from [this example](https://github.com/23/resumable.js/blob/master/samples/Node.js/resumable-node.js).
 
 ### Usage
